@@ -1,0 +1,4 @@
+# Non-secret preferences only. `ytm setup` writes credentials separately.
+[general]
+startup_page = "library"
+playback_bar_position = "bottom"

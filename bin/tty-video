@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# == 0 )); then
+  printf 'Usage: tty-video <YouTube URL or search words>\n' >&2
+  exit 2
+fi
+for tool in mpv yt-dlp deno; do
+  command -v "$tool" >/dev/null || { printf 'Missing %s\n' "$tool" >&2; exit 1; }
+done
+
+input="$*"
+case "$input" in
+  https://*|http://*|youtu.be/*|youtube.com/*)
+    [[ "$input" == http* ]] || input="https://$input"
+    url="$input"
+    ;;
+  *)
+    video_id="$(yt-dlp --no-playlist --get-id "ytsearch1:$input" | head -n 1)"
+    [[ -n "$video_id" ]] || { printf 'No search result.\n' >&2; exit 1; }
+    url="https://www.youtube.com/watch?v=$video_id"
+    ;;
+esac
+
+exec mpv --no-config --vo=gpu --gpu-context=drm --hwdec=auto --ytdl=yes -- "$url"

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$(uname -s)" != Linux ]]; then
+  printf 'Direct DRM video requires Linux.\n' >&2
+  exit 1
+fi
+if [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; then
+  printf 'Run from a local TTY without X or Wayland.\n' >&2
+  exit 1
+fi
+case "$(tty 2>/dev/null)" in
+  /dev/tty[0-9]*) ;;
+  *)
+    if [[ -z ${TMUX:-} || -z ${XDG_VTNR:-} ]]; then
+      printf 'Run from a local virtual console, or its tmux session.\n' >&2
+      exit 1
+    fi
+    ;;
+esac
+for tool in mpv yt-dlp deno; do
+  command -v "$tool" >/dev/null || { printf 'Missing %s.\n' "$tool" >&2; exit 1; }
+done
+if ! mpv --vo=help 2>&1 | grep -Eq '^[[:space:]]+gpu[[:space:]]'; then
+  printf 'This mpv build does not list the gpu video output.\n' >&2
+  exit 1
+fi
+if ! mpv --gpu-context=help 2>&1 | grep -Eq '(^|[[:space:]])drm([[:space:]]|$)'; then
+  printf 'This mpv build does not list the drm GPU context.\n' >&2
+  exit 1
+fi
+cards=(/dev/dri/card*)
+if [[ ! -e ${cards[0]} ]]; then
+  printf 'No /dev/dri/card* device found; check your graphics driver.\n' >&2
+  exit 1
+fi
+for card in "${cards[@]}"; do
+  [[ -r "$card" && -w "$card" ]] && { printf 'DRM device accessible: %s\n' "$card"; printf 'Preflight passed. Try: tty-video <YouTube URL>\n'; exit 0; }
+done
+printf 'No DRM card is readable and writable by this login; check seat access and driver.\n' >&2
+exit 1

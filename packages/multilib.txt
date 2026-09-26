@@ -1,0 +1,2 @@
+# Enable [multilib] in /etc/pacman.conf first.
+steam

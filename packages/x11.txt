@@ -1,0 +1,6 @@
+xorg-server
+xorg-xinit
+xterm
+i3-wm
+dmenu
+firefox

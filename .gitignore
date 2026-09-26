@@ -1,0 +1,7 @@
+config/aerc/accounts.conf
+config/ytm-player/auth.json
+config/ytm-player/account.json
+config/ytm-player/stream_cookies.txt
+config/ytm-player/session.json
+*.swp
+.DS_Store

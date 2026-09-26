@@ -1,0 +1,10 @@
+[init]
+    defaultBranch = main
+[pull]
+    ff = only
+[core]
+    editor = nvim
+[color]
+    ui = auto
+[include]
+    path = ~/.config/git/local.conf
