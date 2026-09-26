@@ -2,6 +2,16 @@
 
 For a fresh x86_64 Arch installation with Bash on local virtual consoles. A login starts (or attaches to) the `main` tmux session. Neovim, ranger, lazygit, music, and mail run there. X starts only when you run `startx` from the login shell.
 
+## Quick start
+
+On a fresh Arch install, logged in as your regular sudo user with a working network:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/m-mcnicholas/tty-arch-dotfiles/main/bootstrap.sh)
+```
+
+`bootstrap.sh` clones this repository to `~/tty-arch-dotfiles` (override with `DOTFILES_DIR`) and does sections 1–3 below. It installs the TTY and X11 packages and a GPU driver detected with `lspci` (Mesa, or `nvidia-open` for NVIDIA). It also enables NetworkManager, links the dotfiles, asks for your Git name and email, installs the pipx applications, and preinstalls the Neovim plugins. Add `--steam` to enable `[multilib]` and install Steam, `--no-x` to skip X, or `--gpu mesa|nvidia|none` to override detection. Running it again is safe. Account setup (`ytm setup`, `pass`, and aerc) stays manual; see section 5. The sections below describe each step individually.
+
 ## 1. Prepare the system
 
 Complete the normal [Arch installation](https://wiki.archlinux.org/title/Installation_guide), create a regular user with sudo access, boot into a local TTY, and make sure the network works. Install the official repository packages listed in the manifests:
