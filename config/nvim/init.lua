@@ -16,7 +16,19 @@ vim.opt.termguicolors = false
 vim.opt.mouse = ''
 vim.opt.undofile = true
 vim.opt.updatetime = 250
-vim.cmd.colorscheme('habamax')
+vim.opt.laststatus = 3
+vim.opt.showmode = false
+-- The console font has box-drawing lines but no rounded corners.
+vim.o.winborder = 'single'
+vim.cmd.colorscheme('tty16')
+
+local modes = { n = 'NORMAL', i = 'INSERT', v = 'VISUAL', V = 'V-LINE', ['\22'] = 'V-BLOCK',
+  c = 'COMMAND', R = 'REPLACE', t = 'TERMINAL' }
+function _G.statusline_mode()
+  local mode = vim.api.nvim_get_mode().mode
+  return modes[mode:sub(1, 1)] or mode
+end
+vim.opt.statusline = ' %{v:lua.statusline_mode()} | %f %m%r%= %{&filetype}  %l:%c  %p%% '
 
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 vim.keymap.set('n', '<leader>w', '<cmd>write<CR>', { desc = 'Write file' })
@@ -46,6 +58,9 @@ require('lazy').setup({
   end },
   { 'nvim-telescope/telescope.nvim', dependencies = { 'nvim-lua/plenary.nvim' },
     config = function()
+      require('telescope').setup({ defaults = {
+        borderchars = { '─', '│', '─', '│', '┌', '┐', '┘', '└' },
+      } })
       local t = require('telescope.builtin')
       vim.keymap.set('n', '<leader>ff', t.find_files, { desc = 'Find files' })
       vim.keymap.set('n', '<leader>fg', t.live_grep, { desc = 'Search text' })
@@ -82,6 +97,10 @@ require('lazy').setup({
     config = function()
       local cmp = require('cmp')
       cmp.setup({
+        window = {
+          completion = cmp.config.window.bordered({ border = 'single' }),
+          documentation = cmp.config.window.bordered({ border = 'single' }),
+        },
         mapping = cmp.mapping.preset.insert({
           ['<C-Space>'] = cmp.mapping.complete(),
           ['<C-e>'] = cmp.mapping.abort(),
@@ -110,9 +129,9 @@ require('lazy').setup({
   end },
 }, {
   lockfile = vim.fn.stdpath('config') .. '/lazy-lock.json',
-  install = { missing = true, colorscheme = { 'habamax' } },
+  install = { missing = true, colorscheme = { 'tty16' } },
   checker = { enabled = false },
   change_detection = { notify = false },
-  ui = { icons = { cmd = ':', config = '*', event = '@', ft = 'ft', init = '+', keys = 'key',
+  ui = { border = 'single', icons = { cmd = ':', config = '*', event = '@', ft = 'ft', init = '+', keys = 'key',
     plugin = '*', runtime = 'rt', require = 'req', source = 'src', start = '>', task = '>' } },
 })

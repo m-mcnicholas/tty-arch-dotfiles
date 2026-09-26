@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Load a 16-colour palette from ~/.config/theme into the Linux virtual console.
+set -euo pipefail
+
+dir="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
+usage() { printf 'Usage: %s [NAME|--list|--reset]\n' "${0##*/}" >&2; exit 2; }
+[[ $# -le 1 ]] || usage
+
+if [[ ${1:-} == --list ]]; then
+  for file in "$dir"/*.sh; do
+    name="${file##*/}"
+    printf '%s\n' "${name%.sh}"
+  done
+  exit 0
+fi
+
+# Inside tmux, write to the console that the client is attached to.
+if [[ -n ${TMUX:-} ]]; then
+  console="$(tmux display-message -p '#{client_tty}')"
+else
+  console="$(tty 2>/dev/null || true)"
+fi
+if [[ $console != /dev/tty[0-9]* ]]; then
+  printf '%s: not on a local virtual console\n' "${0##*/}" >&2
+  exit 1
+fi
+
+case "${1:-}" in
+  --reset) sequence=$'\e]R' ;;
+  -*) usage ;;
+  *)
+    name="${1:-${TTY_THEME:-gruvbox}}"
+    file="$dir/$name.sh"
+    if [[ ! -r $file ]]; then
+      printf '%s: no theme %s in %s\n' "${0##*/}" "$name" "$dir" >&2
+      exit 1
+    fi
+    # shellcheck source=/dev/null
+    source "$file"
+    sequence=''
+    for i in {0..15}; do
+      var="color$i"
+      hex="${!var:-}"
+      if [[ ! $hex =~ ^[0-9A-Fa-f]{6}$ ]]; then
+        printf '%s: %s needs %s as six hex digits\n' "${0##*/}" "$file" "$var" >&2
+        exit 1
+      fi
+      sequence+="$(printf '\e]P%X%s' "$i" "$hex")"
+    done
+    ;;
+esac
+
+printf '%s' "$sequence" > "$console"
+# Repaint so text already on screen picks up the new palette.
+if [[ -n ${TMUX:-} ]]; then
+  tmux refresh-client
+else
+  printf '\e[H\e[2J' > "$console"
+fi

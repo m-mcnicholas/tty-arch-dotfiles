@@ -1,7 +1,23 @@
 set $mod Mod4
 font pango:monospace 10
+
+# xinitrc loads the active palette into X resources; fallbacks are Gruvbox.
+set_from_resource $bg     i3wm.color0 #282828
+set_from_resource $red    i3wm.color1 #cc241d
+set_from_resource $accent i3wm.color4 #458588
+set_from_resource $fg     i3wm.color7 #ebdbb2
+set_from_resource $dim    i3wm.color8 #928374
+# class                 border  background text indicator child_border
+client.focused          $accent $accent    $bg  $accent   $accent
+client.focused_inactive $dim    $bg        $fg  $dim      $dim
+client.unfocused        $bg     $bg        $dim $bg       $bg
+client.urgent           $red    $red       $bg  $red      $red
+client.background       $bg
+default_border pixel 2
+default_floating_border pixel 2
+
 bindsym $mod+Return exec xterm
-bindsym $mod+d exec --no-startup-id dmenu_run
+bindsym $mod+d exec --no-startup-id dmenu_run -fn monospace-10 -nb '$bg' -nf '$fg' -sb '$accent' -sf '$bg'
 bindsym $mod+Shift+f exec firefox
 bindsym $mod+Shift+s exec steam
 bindsym $mod+Shift+q kill
