@@ -68,6 +68,20 @@ Run `nvim`, `ranger`, `lazygit`, `btop`, `w3m`, `ytm`, and `aerc` in separate tm
 
 On first Neovim launch, lazy.nvim downloads the plugins pinned in `config/nvim/lazy-lock.json`, and Treesitter downloads the listed parsers. Run `:checkhealth vim.lsp` and open a file inside a project to confirm the matching server attaches. `:LspInfo` and `:ConformInfo` help diagnose missing tools. [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) now uses `vim.lsp.config` and `vim.lsp.enable` with Neovim 0.11.3 or newer.
 
+## Theme
+
+One 16-colour palette styles the whole workspace. At a TTY login, `tty-theme` loads it into the console before tmux starts. `startx` loads the same palette into X resources for xterm, i3, and dmenu. tmux, Neovim (`tty16` colorscheme), lazygit, fzf, btop, aerc, ranger, less, and the prompt all refer to palette slots rather than fixed colours, so they change together. Slot 0 is the background, 7 the text, and 8 the dim colour for comments and borders.
+
+| Command | Action |
+| --- | --- |
+| `tty-theme --list` | Show the palettes in `config/theme` |
+| `tty-theme nord` | Preview a palette on this console, including from inside tmux |
+| `tty-theme --reset` | Restore the kernel's default console colours |
+
+To keep a palette, change the `TTY_THEME` default in `home.bashrc` and log in again; restart Neovim and X to pick it up there. To add one, copy `config/theme/gruvbox.sh` and set `color0` through `color15` as six hex digits. Backgrounds use only slots 0–7, because tmux on the Linux console turns bright backgrounds into normal ones.
+
+The manifest includes Terminus for a sharper console font. Try sizes with `setfont ter-120n` or `setfont ter-132n` (larger screens); to keep one, set `FONT=` in `/etc/vconsole.conf` as described in the [Arch Linux console guide](https://wiki.archlinux.org/title/Linux_console#Fonts). Borders everywhere use single box-drawing lines because console fonts lack rounded corners.
+
 ## 5. Music, video, and mail
 
 Run `ytm setup` on this machine to connect your YouTube Music account, then run `ytm`. The tracked TOML contains only display preferences; `auth.json`, `account.json`, and cookies stay local. The [ytm-player setup guide](https://ytm-player.com/docs/install/) documents browser and manual setup. For authenticated streaming, set `use_session_cookies = true` in `~/.config/ytm-player/config.toml` after `ytm setup` if needed. That preference is safe to track; credentials remain in separate local files.
@@ -116,7 +130,7 @@ On the TTY, press **`Ctrl-a d`** to leave tmux and return to the login shell, th
 
 ## Verify on the Arch machine
 
-1. Reboot or log in on a local TTY: confirm the tmux status line says `main`; detach and confirm a shell prompt appears.
+1. Reboot or log in on a local TTY: confirm the console uses the Gruvbox palette and the tmux status line shows a blue `main` label; run `tty-theme nord` and `tty-theme` to switch and restore; detach and confirm the coloured prompt appears.
 2. In tmux, run Neovim on one file per listed language, confirm lazy plugins/parsers install, and check `:LspInfo` for each server. Test `Space fg`, completion, and `Space F`.
 3. Run `ranger`, `lazygit`, `btop`, `w3m https://example.org`, `ytm`, and `aerc`; read and compose a test email.
 4. Run `tty-video-check` and play a short YouTube video with `tty-video` while X is stopped.

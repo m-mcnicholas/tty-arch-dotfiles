@@ -19,6 +19,7 @@ python-pipx
 pass
 gnupg
 less
+terminus-font
 typescript
 typescript-language-server
 vscode-html-languageserver

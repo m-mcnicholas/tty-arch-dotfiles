@@ -13,6 +13,8 @@ links=(
   'config/tmux.conf:.config/tmux/tmux.conf'
   'config/gitconfig:.gitconfig'
   'config/nvim:.config/nvim'
+  'config/theme:.config/theme'
+  'config/lazygit/config.yml:.config/lazygit/config.yml'
   'config/ranger:.config/ranger'
   'config/aerc/aerc.conf:.config/aerc/aerc.conf'
   'config/ytm-player/config.toml:.config/ytm-player/config.toml'
@@ -20,6 +22,7 @@ links=(
   'config/i3/config:.config/i3/config'
   'bin/tty-video:.local/bin/tty-video'
   'bin/tty-video-check:.local/bin/tty-video-check'
+  'bin/tty-theme:.local/bin/tty-theme'
 )
 
 for pair in "${links[@]}"; do

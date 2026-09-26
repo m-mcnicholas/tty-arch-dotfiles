@@ -1,0 +1,16 @@
+# Named colours follow the console palette; single borders suit the console font.
+gui:
+  border: single
+  nerdFontsVersion: ""
+  theme:
+    activeBorderColor:
+      - blue
+      - bold
+    inactiveBorderColor:
+      - default
+    optionsTextColor:
+      - blue
+    selectedLineBgColor:
+      - blue
+    unstagedChangesColor:
+      - red
