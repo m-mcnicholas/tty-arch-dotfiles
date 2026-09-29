@@ -1,6 +1,7 @@
 #!/bin/sh
 # Share the console palette with xterm, i3, and dmenu through X resources.
-theme="${XDG_CONFIG_HOME:-$HOME/.config}/theme/${TTY_THEME:-gruvbox}.sh"
+preferred=$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/tty-setup/theme" 2>/dev/null || printf "%s" "${TTY_THEME:-gruvbox}")
+theme="${XDG_CONFIG_HOME:-$HOME/.config}/theme/${preferred}.sh"
 if [ -r "$theme" ]; then
   . "$theme"
   {

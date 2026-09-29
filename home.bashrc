@@ -5,7 +5,7 @@ export PAGER=less
 export PATH="$HOME/.local/bin:$PATH"
 
 # Palette in ~/.config/theme used by the console, X, and every 16-colour app.
-export TTY_THEME="${TTY_THEME:-gruvbox}"
+export TTY_THEME="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/tty-setup/theme" 2>/dev/null || printf "%s" "${TTY_THEME:-gruvbox}")"
 export LESS='-R --use-color -Dd+r$Du+b$'
 export MANPAGER='less -R --use-color -Dd+r -Du+b'
 export MANROFFOPT='-P -c'
@@ -27,6 +27,6 @@ GIT_PS1_SHOWDIRTYSTATE=1
 __prompt() {
   local status=$? mark='\[\e[32m\]'
   ((status)) && mark='\[\e[31m\]'
-  PS1="${SSH_CONNECTION:+\u@\h }\[\e[1;34m\]\w\[\e[0;33m\]$(__git_ps1 ' %s')\n${mark}\$\[\e[0m\] "
+  PS1="\u${SSH_CONNECTION:+@\h} \[\e[1;34m\]\w\[\e[0;33m\]$(__git_ps1 ' %s')\n${mark}\$\[\e[0m\] "
 }
 PROMPT_COMMAND=__prompt

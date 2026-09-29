@@ -22,6 +22,8 @@ vim.opt.showmode = false
 vim.o.winborder = 'single'
 vim.cmd.colorscheme('tty16')
 
+local languages = require('tty_languages')
+
 local modes = { n = 'NORMAL', i = 'INSERT', v = 'VISUAL', V = 'V-LINE', ['\22'] = 'V-BLOCK',
   c = 'COMMAND', R = 'REPLACE', t = 'TERMINAL' }
 function _G.statusline_mode()
@@ -49,8 +51,7 @@ vim.opt.rtp:prepend(lazypath)
 require('lazy').setup({
   { 'nvim-treesitter/nvim-treesitter', branch = 'master', build = ':TSUpdate', config = function()
     require('nvim-treesitter.configs').setup({
-      ensure_installed = { 'bash', 'css', 'html', 'javascript', 'json', 'lua', 'markdown',
-        'markdown_inline', 'python', 'tsx', 'typescript' },
+      ensure_installed = languages.parsers(),
       auto_install = false,
       highlight = { enable = true },
       indent = { enable = true },
@@ -74,7 +75,7 @@ require('lazy').setup({
   { 'neovim/nvim-lspconfig', dependencies = { 'hrsh7th/cmp-nvim-lsp' },
     config = function()
       local capabilities = require('cmp_nvim_lsp').default_capabilities()
-      local servers = { 'ts_ls', 'html', 'cssls', 'jsonls', 'pyright', 'bashls', 'lua_ls', 'marksman' }
+      local servers = languages.servers()
       for _, name in ipairs(servers) do
         vim.lsp.config(name, { capabilities = capabilities })
         vim.lsp.enable(name)
@@ -113,13 +114,7 @@ require('lazy').setup({
       })
     end },
   { 'stevearc/conform.nvim', opts = {
-    formatters_by_ft = {
-      javascript = { 'prettier' }, javascriptreact = { 'prettier' },
-      typescript = { 'prettier' }, typescriptreact = { 'prettier' },
-      html = { 'prettier' }, css = { 'prettier' }, json = { 'prettier' },
-      markdown = { 'prettier' }, python = { 'ruff_format' },
-      sh = { 'shfmt' }, bash = { 'shfmt' }, lua = { 'stylua' },
-    },
+    formatters_by_ft = languages.formatters(),
     format_on_save = { timeout_ms = 1500, lsp_format = 'fallback' },
   }, config = function(_, opts)
     require('conform').setup(opts)

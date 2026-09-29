@@ -1,8 +1,11 @@
-# Official Arch repositories; see README for the install command.
+# Core workspace only
+pacman
+openssh
 git
 base-devel
 networkmanager
 pciutils
+dialog
 tmux
 neovim
 ranger
@@ -12,25 +15,6 @@ ripgrep
 fd
 btop
 w3m
-aerc
-mpv
-deno
-python-pipx
-pass
-gnupg
 less
 terminus-font
-typescript
-typescript-language-server
-vscode-html-languageserver
-vscode-css-languageserver
-vscode-json-languageserver
-pyright
-bash-language-server
-lua-language-server
-marksman
-prettier
-ruff
-shfmt
-stylua
-shellcheck
+xdg-user-dirs

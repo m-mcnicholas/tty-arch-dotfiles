@@ -1,7 +1,0 @@
-xorg-server
-xorg-xinit
-xorg-xrdb
-xterm
-i3-wm
-dmenu
-firefox

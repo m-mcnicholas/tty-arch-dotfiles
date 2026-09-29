@@ -1,30 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage() { printf 'Usage: %s --plan|--apply\n' "$0" >&2; exit 2; }
-[[ $# == 1 ]] || usage
+usage() { printf 'Usage: %s --plan|--apply [--features IDs]\n' "$0" >&2; exit 2; }
+[[ $# -ge 1 ]] || usage
 case "$1" in --plan|--apply) mode="$1" ;; *) usage ;; esac
+shift
 repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=lib/features.sh
+source "$repo/lib/features.sh"
+selected=()
+if (($#)); then
+  [[ $# == 2 && $1 == --features && -n $2 ]] || usage
+  IFS=, read -r -a requested <<< "$2"
+  resolve "${requested[@]-}"
+else
+  selected=("${ids[@]}")
+fi
+links=()
+for id in "${selected[@]}"; do
+  for pair in $(get feature_links "$id"); do links+=("$pair"); done
+done
 
-links=(
-  'home.bash_profile:.bash_profile'
-  'home.bashrc:.bashrc'
-  'home.xinitrc:.xinitrc'
-  'config/tmux.conf:.config/tmux/tmux.conf'
-  'config/gitconfig:.gitconfig'
-  'config/nvim:.config/nvim'
-  'config/theme:.config/theme'
-  'config/lazygit/config.yml:.config/lazygit/config.yml'
-  'config/ranger:.config/ranger'
-  'config/aerc/aerc.conf:.config/aerc/aerc.conf'
-  'config/ytm-player/config.toml:.config/ytm-player/config.toml'
-  'config/mpv/mpv.conf:.config/mpv/mpv.conf'
-  'config/i3/config:.config/i3/config'
-  'bin/tty-video:.local/bin/tty-video'
-  'bin/tty-video-check:.local/bin/tty-video-check'
-  'bin/tty-theme:.local/bin/tty-theme'
-)
-
+if ((${#links[@]})); then
 for pair in "${links[@]}"; do
   source_path="$repo/${pair%%:*}"
   target_path="$HOME/${pair#*:}"
@@ -54,3 +51,5 @@ for pair in "${links[@]}"; do
     ln -s -- "$source_path" "$target_path"
   fi
 done
+
+fi

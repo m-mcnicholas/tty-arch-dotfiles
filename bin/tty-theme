@@ -3,7 +3,16 @@
 set -euo pipefail
 
 dir="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
-usage() { printf 'Usage: %s [NAME|--list|--reset]\n' "${0##*/}" >&2; exit 2; }
+usage() { printf 'Usage: %s [NAME|--list|--reset|--set NAME]\n' "${0##*/}" >&2; exit 2; }
+if [[ ${1:-} == --set ]]; then
+  [[ $# == 2 && $2 =~ ^[a-zA-Z0-9_-]+$ && -r $dir/$2.sh ]] || usage
+  pref="${XDG_CONFIG_HOME:-$HOME/.config}/tty-setup/theme"
+  mkdir -p -- "$(dirname -- "$pref")"
+  printf '%s\n' "$2" > "$pref"
+  # Saving over SSH is valid; a local console gets the palette immediately.
+  "$0" "$2" || true
+  exit 0
+fi
 [[ $# -le 1 ]] || usage
 
 if [[ ${1:-} == --list ]]; then
@@ -29,7 +38,7 @@ case "${1:-}" in
   --reset) sequence=$'\e]R' ;;
   -*) usage ;;
   *)
-    name="${1:-${TTY_THEME:-gruvbox}}"
+    name="${1:-$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/tty-setup/theme" 2>/dev/null || printf "%s" "${TTY_THEME:-gruvbox}")}"
     file="$dir/$name.sh"
     if [[ ! -r $file ]]; then
       printf '%s: no theme %s in %s\n' "${0##*/}" "$name" "$dir" >&2

@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+script=${BASH_SOURCE[0]}
+while [[ -L $script ]]; do
+  base=$(cd -- "$(dirname -- "$script")" && pwd -P)
+  script=$(readlink -- "$script")
+  [[ $script == /* ]] || script=$base/$script
+done
+repo=$(cd -- "$(dirname -- "$script")/.." && pwd -P)
+# shellcheck source=../lib/features.sh
+source "$repo/lib/features.sh"
+export PATH="$HOME/.local/bin:$PATH"
+state=${XDG_STATE_HOME:-$HOME/.local/state}/tty-setup
+config=${XDG_CONFIG_HOME:-$HOME/.config}/tty-setup
+plan=0 yes=0 explicit=0 gpu=none gpu_set=0
+requested=(core joplin)
+usage() {
+  echo 'Usage: tty-setup [--plan] [--features core,joplin,...] [--yes] [--with-x|--no-x] [--steam] [--gpu auto|mesa|nvidia|none]'
+}
+die() { echo "error: $*" >&2; exit 1; }
+step=initialization
+trap 'code=$?; printf "Failed step: %s (exit %s). Fix the error and rerun tty-setup; completed features are retained.\n" "$step" "$code" >&2; exit "$code"' ERR
+while (($#)); do
+  case $1 in
+    --plan) plan=1 ;;
+    --yes) yes=1 ;;
+    --features) [[ $# -ge 2 && -n $2 ]] || die 'missing feature IDs'; IFS=, read -r -a requested <<< "$2"; explicit=1; shift ;;
+    --with-x) requested+=(x11) ;;
+    --no-x) filtered=(); for id in "${requested[@]-}"; do [[ $id == x11 ]] || filtered+=("$id"); done; requested=("${filtered[@]}") ;;
+    --steam) requested+=(steam) ;;
+    --gpu) [[ $# -ge 2 ]] || die 'missing GPU choice'; gpu=$2; gpu_set=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
+case $gpu in auto|mesa|nvidia|none) ;; *) die 'invalid GPU choice' ;; esac
+selected=(); resolve core
+((${#requested[@]} == 0)) || resolve "${requested[@]}"
+if ((!gpu_set)) && [[ " ${selected[*]-} " == *' x11 '* || " ${selected[*]-} " == *' video '* ]]; then gpu=auto; fi
+status() {
+  local id=$1 pkg complete=1
+  for pkg in $(get packages "$id"); do pacman -Q "$pkg" >/dev/null 2>&1 || complete=0; done
+  if [[ -n $(get probes "$id") ]]; then command -v "$(get probes "$id")" >/dev/null || complete=0; fi
+  [[ $id != ssh-server ]] || systemctl is-enabled --quiet sshd 2>/dev/null || complete=0
+  if [[ $id == lang-* ]]; then
+    [[ -f $config/languages/$id ]] || complete=0
+  fi
+  if [[ $id == lang-rust ]]; then command -v rustfmt >/dev/null || complete=0; fi
+  if [[ -f $state/$id ]]; then
+    ((complete)) && echo installed || echo 'repair needed'
+  elif ((complete)); then echo 'tools detected'; else echo 'not installed'; fi
+}
+summary() {
+  echo 'Selected features (unchecked features are never removed):'
+  for id in "${selected[@]}"; do printf '  %s: %s [%s]\n' "$id" "$(get descriptions "$id")" "$(status "$id")"; done
+  echo 'Packages: full system upgrade with pacman -Syu --needed, plus selected packages.'
+  for id in "${selected[@]}"; do printf '  %s\n' "$(get packages "$id")"; done
+  echo "Graphics: $gpu (auto detection runs after pciutils is installed)."
+  echo 'Core enables NetworkManager, creates home folders, links configuration and installs Neovim plugins.'
+  [[ " ${selected[*]-} " != *' joplin '* ]] || echo 'Joplin: npm install in ~/.joplin-bin; link ~/.local/bin/joplin.'
+  [[ " ${selected[*]-} " != *' steam '* ]] || echo 'Steam: enable multilib in /etc/pacman.conf.'
+  [[ " ${selected[*]-} " != *' ssh-server '* ]] || echo 'SSH server: enable and start sshd; keep its existing configuration.'
+}
+if ((plan)); then
+  summary
+  csv=$(IFS=,; echo "${selected[*]-}")
+  "$repo/install.sh" --plan --features "$csv"
+  exit 0
+fi
+[[ -f ${TTY_SETUP_ARCH_RELEASE:-/etc/arch-release} ]] || die 'requires an installed Arch Linux system'
+[[ $(uname -m) == x86_64 ]] || die 'requires x86_64 Arch Linux'
+((EUID != 0)) || die 'run as your regular sudo-capable user, not root'
+command -v pacman >/dev/null || die 'pacman is a prerequisite; repair your Arch installation first'
+command -v sudo >/dev/null || die 'sudo is required'
+step='sudo authentication'; sudo -v
+if ((!yes)); then
+  if ! command -v dialog >/dev/null; then
+    printf 'The menu requires dialog. Install it with a full system upgrade now? [y/N] '
+    read -r answer </dev/tty
+    [[ $answer == [yY] ]] || exit 0
+    step='install dialog and upgrade system'; sudo pacman -Syu --needed dialog
+  fi
+  while :; do
+    options=()
+    for id in "${ids[@]}"; do
+      [[ $id == core ]] && continue
+      checked=off
+      if [[ " ${selected[*]-} " == *" $id "* ]] || { ((!explicit)) && [[ -f $state/$id ]]; }; then checked=on; fi
+      options+=("$id" "$(get descriptions "$id") [$(status "$id")]" "$checked")
+    done
+    if ! choice=$(dialog --stdout --separate-output --title 'TTY setup' --checklist 'Space: toggle. Enter: review. Cancel: exit. Core is always included.' 24 100 16 "${options[@]}"); then exit 0; fi
+    selected=(); requested=(); while IFS= read -r id; do [[ -z $id ]] || requested+=("$id"); done <<< "$choice"
+    resolve core
+    ((${#requested[@]} == 0)) || resolve "${requested[@]}"
+    explicit=1
+    if ((!gpu_set)) && [[ " ${selected[*]-} " == *' x11 '* || " ${selected[*]-} " == *' video '* ]]; then
+      if ! gpu=$(dialog --stdout --menu 'Graphics (auto assumes the stock Arch kernel for NVIDIA)' 16 80 4 none 'Leave drivers unchanged' auto 'Detect after installing pciutils' mesa 'Intel / AMD Mesa' nvidia 'NVIDIA open driver (supported cards only)'); then continue; fi
+    fi
+    if dialog --yes-label Apply --no-label Back --yesno "$(summary)" 25 100; then break; fi
+  done
+fi
+summary
+step='package access'; sudo pacman -Sp coreutils >/dev/null
+mkdir -p "$state" "$config"
+if [[ " ${selected[*]-} " == *' steam '* ]]; then
+  step='enable multilib'
+  if ! grep -q '^\[multilib\]' "${TTY_SETUP_PACMAN_CONF:-/etc/pacman.conf}"; then
+    sudo sed -i.bak-tty-setup '/^#\[multilib\]$/{s/^#//;n;s/^#//;}' "${TTY_SETUP_PACMAN_CONF:-/etc/pacman.conf}"
+    grep -q '^\[multilib\]' "${TTY_SETUP_PACMAN_CONF:-/etc/pacman.conf}" || die 'enable multilib manually, then retry'
+  fi
+fi
+pending_graphics=()
+for id in "${selected[@]}"; do
+  step="$id packages"
+  read -r -a pkgs <<< "$(get packages "$id")"
+  if [[ $id == lang-rust ]] && ! command -v rustc >/dev/null; then
+    if command -v rustup >/dev/null; then
+      rustup toolchain install stable
+      rustup default stable
+    else pkgs+=(rust); fi
+  fi
+  if [[ $id == lang-rust ]] && ! command -v rustfmt >/dev/null; then
+    if command -v rustup >/dev/null; then rustup component add rustfmt; else [[ " ${pkgs[*]} " == *' rust '* ]] || pkgs+=(rust); fi
+  fi
+  sudo pacman -Syu --needed --noconfirm "${pkgs[@]}"
+  step="$id configuration"
+  "$repo/install.sh" --apply --features "$id"
+  case $id in
+    core)
+      sudo systemctl enable --now NetworkManager
+      # Existing user-dirs.dirs is authoritative; never reset custom paths.
+      if [[ ! -f ${XDG_CONFIG_HOME:-$HOME/.config}/user-dirs.dirs ]]; then xdg-user-dirs-update; fi
+      for kind in DOWNLOAD DOCUMENTS PICTURES MUSIC VIDEOS DESKTOP TEMPLATES PUBLICSHARE; do
+        folder=$(xdg-user-dir "$kind")
+        [[ -z $folder ]] || mkdir -p -- "$folder"
+      done
+      mkdir -p "$HOME/Projects"
+      [[ -f $config/theme ]] || printf 'gruvbox\n' > "$config/theme"
+      "$repo/bin/tty-theme" >/dev/null 2>&1 || true
+      nvim --headless '+Lazy! restore' +qa
+      ;;
+    joplin)
+      NPM_CONFIG_PREFIX="$HOME/.joplin-bin" npm install --loglevel=error -g joplin
+      target=$HOME/.local/bin/joplin
+      if [[ -e $target || -L $target ]]; then
+        if [[ $(readlink "$target" || true) != "$HOME/.joplin-bin/bin/joplin" ]]; then mv "$target" "$target.backup-$(date +%s)-$$"; fi
+      fi
+      ln -sfn "$HOME/.joplin-bin/bin/joplin" "$target"
+      ;;
+    music|video)
+      installed=$(pipx list --short)
+      if [[ $id == music ]]; then
+        grep -q '^ytm-player ' <<< "$installed" || pipx install ytm-player
+        pipx inject --force ytm-player 'yt-dlp[default]'
+      fi
+      grep -q '^yt-dlp ' <<< "$installed" || pipx install 'yt-dlp[default]'
+      ;;
+    ssh-server) sudo systemctl enable --now sshd ;;
+    lang-*)
+      mkdir -p "$config/languages"
+      touch "$config/languages/$id"
+      # Parsers are installed synchronously; a failed run remains retryable.
+      if ! nvim --headless '+Lazy! restore' '+lua require("tty_languages").install()' +qa; then
+        rm -f "$config/languages/$id"
+        die "$id parser installation failed"
+      fi
+      ;;
+  esac
+  case $id in x11|video|steam) pending_graphics+=("$id") ;; *) touch "$state/$id" ;; esac
+done
+step='graphics'
+if [[ $gpu == auto ]]; then
+  gpu=mesa
+  if lspci | grep -Ei 'vga|3d|display' | grep -qi nvidia; then gpu=nvidia; fi
+fi
+graphics=()
+case $gpu in
+  mesa) graphics=(mesa); [[ " ${selected[*]-} " != *' steam '* ]] || graphics+=(lib32-mesa vulkan-radeon vulkan-intel lib32-vulkan-radeon lib32-vulkan-intel) ;;
+  nvidia) graphics=(nvidia-open nvidia-utils); [[ " ${selected[*]-} " != *' steam '* ]] || graphics+=(lib32-nvidia-utils) ;;
+esac
+((${#graphics[@]} == 0)) || sudo pacman -Syu --needed --noconfirm "${graphics[@]-}"
+if ((${#pending_graphics[@]})); then
+  for id in "${pending_graphics[@]}"; do touch "$state/$id"; done
+fi
+echo 'Setup complete. Log in again locally to start tmux. Reopen with tty-setup.'
+for id in "${selected[@]}"; do
+  case $id in
+    core) echo 'Git identity: git config --file ~/.config/git/local.conf user.name "Your Name" (and user.email).'; mkdir -p "$HOME/.config/git" ;;
+    joplin) echo 'Run joplin; configure synchronization there. Notes and credentials stay local.' ;;
+    music) echo 'Run ytm setup to connect YouTube Music.' ;;
+    mail) echo "Initialize GPG/pass, store mail/gmail-app, then copy $repo/examples/aerc-accounts.conf.example to ~/.config/aerc/accounts.conf; chmod 600 and edit addresses." ;;
+  esac
+done
