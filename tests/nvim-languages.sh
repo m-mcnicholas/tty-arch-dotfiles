@@ -16,4 +16,20 @@ for entry in 'lang-js javascript ts_ls javascript prettier' 'lang-web html html 
   run "local m=require('tty_languages'); assert(vim.tbl_contains(m.parsers(), '$parser')); assert(vim.tbl_contains(m.servers(), '$server')); assert(m.formatters().$ft[1]=='$formatter')"
   rm "$XDG_CONFIG_HOME/tty-setup/languages/$id"
 done
+touch "$XDG_CONFIG_HOME/tty-setup/languages/lang-js"
+run "local m=require('tty_languages')
+  local installed={javascript=true}
+  local commands={}
+  vim.api.nvim_get_runtime_file=function(path)
+    local parser=path:match('parser/(.*)%.so')
+    return installed[parser] and {'present'} or {}
+  end
+  vim.cmd=function(command)
+    table.insert(commands, command)
+    for parser in command:gmatch('%S+') do installed[parser]=true end
+  end
+  m.install()
+  assert(commands[1]=='TSInstallSync typescript tsx')
+  m.install()
+  assert(#commands==1)"
 printf 'Neovim language tests passed\n'

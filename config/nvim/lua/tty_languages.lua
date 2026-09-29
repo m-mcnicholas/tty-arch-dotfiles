@@ -35,10 +35,15 @@ function M.formatters()
   return result
 end
 function M.install()
-  local parsers = M.parsers()
-  if #parsers > 0 then
-    vim.cmd('TSInstallSync ' .. table.concat(parsers, ' '))
-    for _, parser in ipairs(parsers) do
+  local missing = {}
+  for _, parser in ipairs(M.parsers()) do
+    if #vim.api.nvim_get_runtime_file('parser/' .. parser .. '.so', false) == 0 then
+      table.insert(missing, parser)
+    end
+  end
+  if #missing > 0 then
+    vim.cmd('TSInstallSync ' .. table.concat(missing, ' '))
+    for _, parser in ipairs(missing) do
       if #vim.api.nvim_get_runtime_file('parser/' .. parser .. '.so', false) == 0 then
         error('Tree-sitter parser was not installed: ' .. parser)
       end
